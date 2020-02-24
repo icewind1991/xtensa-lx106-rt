@@ -48,3 +48,7 @@ SECTIONS {
   } >dram_seg
 
 }
+
+/* Proprietary ROM function needed for proper clock configuration.
+ */
+rom_i2c_writeReg = 0x400072d8;

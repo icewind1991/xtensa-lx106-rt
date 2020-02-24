@@ -15,6 +15,7 @@ pub unsafe extern "C" fn Reset() -> ! {
         static mut _data_end: u32;
         static _sidata: u32;
 
+        fn rom_i2c_writeReg(block: u8, host_id: u8, reg_add: u8, data: u8);
     }
 
     extern "Rust" {
@@ -24,6 +25,12 @@ pub unsafe extern "C" fn Reset() -> ! {
         // This symbol will be provided by the user via `#[pre_init]`
         // fn __pre_init();
     }
+
+    // Initialize PLL.
+    // I'm not quite sure what this magic incantation means, but it does set the
+    // esp8266 to the right clock speed. Without this, it is running too slow.
+    rom_i2c_writeReg(103, 4, 1, 136);
+    rom_i2c_writeReg(103, 4, 2, 145);
 
     // __pre_init();
 
