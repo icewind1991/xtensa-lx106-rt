@@ -2,6 +2,12 @@
 
 use r0;
 
+pub use xtensa_lx106_rt_proc_macros::{entry, pre_init};
+
+#[doc(hidden)]
+#[no_mangle]
+pub unsafe extern "C" fn DefaultPreInit() {}
+
 #[doc(hidden)]
 #[no_mangle]
 pub unsafe extern "C" fn Reset() -> ! {
@@ -23,7 +29,7 @@ pub unsafe extern "C" fn Reset() -> ! {
         fn main() -> !;
 
         // This symbol will be provided by the user via `#[pre_init]`
-        // fn __pre_init();
+        fn __pre_init();
     }
 
     // Initialize PLL.
@@ -32,7 +38,7 @@ pub unsafe extern "C" fn Reset() -> ! {
     rom_i2c_writeReg(103, 4, 1, 136);
     rom_i2c_writeReg(103, 4, 2, 145);
 
-    // __pre_init();
+    __pre_init();
 
     // Initialize RAM
     r0::zero_bss(&mut _bss_start, &mut _bss_end);
