@@ -3,6 +3,7 @@
 use r0;
 
 pub use xtensa_lx106_rt_proc_macros::{entry, pre_init};
+pub mod interrupt;
 
 #[doc(hidden)]
 #[no_mangle]
@@ -12,7 +13,6 @@ pub unsafe extern "C" fn DefaultPreInit() {}
 #[no_mangle]
 pub unsafe extern "C" fn Reset() -> ! {
     extern "C" {
-
         // These symbols come from `link.x`
         static mut _bss_start: u32;
         static mut _bss_end: u32;

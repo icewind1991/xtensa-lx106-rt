@@ -54,3 +54,8 @@ SECTIONS {
 /* Proprietary ROM function needed for proper clock configuration.
  */
 rom_i2c_writeReg = 0x400072d8;
+
+/* Interrupt control ROM functions */
+PROVIDE ( ets_isr_attach = 0x40000f88 );
+PROVIDE ( ets_isr_mask = 0x40000f98 );
+PROVIDE ( ets_isr_unmask = 0x40000fa8 );
