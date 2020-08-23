@@ -20,7 +20,7 @@ unsafe extern "C" fn trampoline<F, Type: InterruptType>(user_data: *mut c_void, 
     user_data(Type::status());
 }
 
-unsafe extern "C" fn noop(_user_data: * mut c_void, _frame: * mut c_void) {}
+unsafe extern "C" fn noop(_user_data: *mut c_void, _frame: *mut c_void) {}
 
 pub trait InterruptType: private::Sealed + Sized {
     const TYPE: u32;
@@ -49,10 +49,6 @@ macro_rules! interrupt_types {
             $(impl Sealed for super::$ty {})+
         }
 
-        pub struct InterruptTypes {
-            $(pub $name: $ty,)+
-        }
-
         impl InterruptTypes {
             pub unsafe fn steal() -> InterruptTypes {
                 InterruptTypes {
@@ -61,6 +57,19 @@ macro_rules! interrupt_types {
             }
         }
     }
+}
+
+#[allow(dead_code)]
+pub struct InterruptTypes {
+    // a fields being private means that the interrupt type ins't fully implemented yet
+    slc: SLC,
+    spi: SPI,
+    pub gpio: GPIO,
+    uart: UART,
+    compare: COMPARE,
+    soft: SOFT,
+    wdt: WDT,
+    timer1: TIMER1,
 }
 
 interrupt_types!(
