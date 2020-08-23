@@ -6,6 +6,8 @@ INCLUDE memory.x
 /* after memory.x to allow override */
 PROVIDE(__pre_init = DefaultPreInit);
 
+PROVIDE(__exception = __default_exception);
+
 /* Define output sections */
 SECTIONS {
 
@@ -54,6 +56,8 @@ SECTIONS {
 /* Proprietary ROM function needed for proper clock configuration.
  */
 rom_i2c_writeReg = 0x400072d8;
+
+PROVIDE ( _xtos_set_exception_handler = 0x40000454 );
 
 /* Interrupt control ROM functions */
 PROVIDE ( ets_isr_attach = 0x40000f88 );

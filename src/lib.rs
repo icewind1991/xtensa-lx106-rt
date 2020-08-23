@@ -1,9 +1,16 @@
 #![no_std]
+#![feature(llvm_asm)]
+#![feature(global_asm)]
+#![feature(naked_functions)]
+
 
 use r0;
 
-pub use xtensa_lx106_rt_proc_macros::{entry, pre_init};
+pub use xtensa_lx106_rt_proc_macros::{entry, pre_init, exception};
+pub use crate::exception::{ExceptionCause, ExceptionContext};
+
 pub mod interrupt;
+pub mod exception;
 
 #[doc(hidden)]
 #[no_mangle]
@@ -39,6 +46,10 @@ pub unsafe extern "C" fn Reset() -> ! {
     rom_i2c_writeReg(103, 4, 2, 145);
 
     __pre_init();
+
+    for cause in ExceptionCause::Illegal as u32..ExceptionCause::Cp7Disabled as u32 {
+        exception::_xtos_set_exception_handler(cause, exception::__exception)
+    }
 
     // Initialize RAM
     r0::zero_bss(&mut _bss_start, &mut _bss_end);
