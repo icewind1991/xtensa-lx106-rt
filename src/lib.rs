@@ -11,6 +11,7 @@ pub use crate::exception::{ExceptionCause, ExceptionContext};
 
 pub mod interrupt;
 pub mod exception;
+pub mod rom;
 
 #[doc(hidden)]
 #[no_mangle]
@@ -27,8 +28,6 @@ pub unsafe extern "C" fn Reset() -> ! {
         static mut _data_start: u32;
         static mut _data_end: u32;
         static _sidata: u32;
-
-        fn rom_i2c_writeReg(block: u8, host_id: u8, reg_add: u8, data: u8);
     }
 
     extern "Rust" {
@@ -42,13 +41,13 @@ pub unsafe extern "C" fn Reset() -> ! {
     // Initialize PLL.
     // I'm not quite sure what this magic incantation means, but it does set the
     // esp8266 to the right clock speed. Without this, it is running too slow.
-    rom_i2c_writeReg(103, 4, 1, 136);
-    rom_i2c_writeReg(103, 4, 2, 145);
+    rom::rom_i2c_writeReg(103, 4, 1, 136);
+    rom::rom_i2c_writeReg(103, 4, 2, 145);
 
     __pre_init();
 
     for cause in ExceptionCause::Illegal as u32..ExceptionCause::Cp7Disabled as u32 {
-        exception::_xtos_set_exception_handler(cause, exception::__exception)
+        rom::_xtos_set_exception_handler(cause, exception::__exception)
     }
 
     // Initialize RAM
