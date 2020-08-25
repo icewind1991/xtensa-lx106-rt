@@ -37,16 +37,6 @@ impl Default for SHA1Context {
     }
 }
 
-#[allow(non_camel_case_name)]
-pub struct esp_rom_spiflash_chip_t {
-    device_id: u32,
-    chip_size: u32,
-    block_size: u32,
-    sector_size: u32,
-    page_size: u32,
-    status_mask: u32,
-}
-
 extern "C" {
     pub fn rom_i2c_writeReg(block: u8, host_id: u8, reg_add: u8, data: u8);
     pub fn software_reset();
