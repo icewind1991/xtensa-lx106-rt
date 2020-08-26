@@ -17,6 +17,31 @@ pub mod rom;
 #[no_mangle]
 pub unsafe extern "C" fn DefaultPreInit() {}
 
+const CRYSTAL_26MHZ: (u8, u8) = (136, 145);
+const CRYSTAL_40MHZ: (u8, u8) = (8, 129);
+
+pub enum CrystalFrequency {
+    Crystal26MHz,
+    Crystal40MHz,
+}
+
+/// Configure the internal PLL for a given crystal frequency
+///
+/// Most boards use a 26MHz crystal, and the PLL will be configured for this by default.
+/// If your board uses a 40MHz crystal, you'll need to use this method to get your clock
+/// running at the expected 80MHz
+pub fn set_crystal_frequency(crystal: CrystalFrequency) {
+    match crystal {
+        CrystalFrequency::Crystal26MHz => unsafe { configure_pll(CRYSTAL_26MHZ) },
+        CrystalFrequency::Crystal40MHz => unsafe { configure_pll(CRYSTAL_40MHZ) }
+    }
+}
+
+unsafe fn configure_pll((reg1, reg2): (u8, u8)) {
+    rom::rom_i2c_writeReg(103, 4, 1, reg1);
+    rom::rom_i2c_writeReg(103, 4, 2, reg2);
+}
+
 #[doc(hidden)]
 #[no_mangle]
 pub unsafe extern "C" fn Reset() -> ! {
@@ -38,11 +63,7 @@ pub unsafe extern "C" fn Reset() -> ! {
         fn __pre_init();
     }
 
-    // Initialize PLL.
-    // I'm not quite sure what this magic incantation means, but it does set the
-    // esp8266 to the right clock speed. Without this, it is running too slow.
-    rom::rom_i2c_writeReg(103, 4, 1, 136);
-    rom::rom_i2c_writeReg(103, 4, 2, 145);
+    set_crystal_frequency(CrystalFrequency::Crystal26MHz);
 
     __pre_init();
 
