@@ -51,6 +51,8 @@ pub unsafe extern "C" fn Reset() -> ! {
         static mut _data_start: u32;
         static mut _data_end: u32;
         static _sidata: u32;
+
+        static mut _init_start: u32;
     }
 
     extern "Rust" {
@@ -65,13 +67,18 @@ pub unsafe extern "C" fn Reset() -> ! {
 
     __pre_init();
 
-    for cause in ExceptionCause::Illegal as u32..ExceptionCause::Cp7Disabled as u32 {
-        rom::_xtos_set_exception_handler(cause, exception::__exception)
-    }
-
     // Initialize RAM
     r0::zero_bss(&mut _bss_start, &mut _bss_end);
     r0::init_data(&mut _data_start, &mut _data_end, &_sidata);
 
+    // move vec table
+    set_vecbase(&_init_start as *const u32);
+
     main()
+}
+
+#[doc(hidden)]
+#[inline]
+unsafe fn set_vecbase(base: *const u32) {
+    llvm_asm!("wsr.vecbase $0" ::"r"(base) :: "volatile");
 }

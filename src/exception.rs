@@ -1,3 +1,5 @@
+mod assembly;
+
 /// EXCCAUSE register values
 ///
 /// General Exception Causes. (Values of EXCCAUSE special register set by general exceptions,
@@ -100,10 +102,8 @@ pub enum ExceptionCause {
 pub struct ExceptionContext {
     PC: u32,
     PS: u32,
-    SAR: u32,
-    VPRI: u32,
     A0: u32,
-    // no A1
+    A1: u32,
     A2: u32,
     A3: u32,
     A4: u32,
@@ -118,28 +118,73 @@ pub struct ExceptionContext {
     A13: u32,
     A14: u32,
     A15: u32,
-    reason: ExceptionCause,
+    SAR: u32,
+    EXCCAUSE: u32,
+    EXCVADDR: u32,
 }
 
-impl ExceptionContext {
-    pub fn reason(&self) -> ExceptionCause {
-        self.reason
-    }
-}
-
-extern "C" {
-    /// This symbol will be provided by the user via `#[exception]`
-    pub fn __exception(context: &ExceptionContext);
-}
-
+#[naked]
 #[no_mangle]
-#[link_section = ".rwtext"]
-extern "C" fn __default_exception(context: &ExceptionContext) {
-    panic!("Exception: {:?}", context)
+#[link_section = ".DebugExceptionVector.text"]
+unsafe extern "C" fn _DebugExceptionVector() {
+    llvm_asm!(
+        "
+    wsr a0, EXCSAVE2 // preserve a0
+    call0 __naked_debug_exception     // used as long jump
+    "
+    );
 }
 
-
-extern "C" {
-    pub fn _xtos_set_exception_handler(cause: u32, handler: unsafe extern "C" fn(&ExceptionContext));
+#[naked]
+#[no_mangle]
+#[link_section = ".NMIExceptionVector.text"]
+unsafe extern "C" fn _NMIExceptionVector() {
+    llvm_asm!(
+        "
+    wsr a0, EXCSAVE3 // preserve a0
+    call0 __naked_nmi_exception     // used as long jump
+    "
+    );
 }
 
+#[naked]
+#[no_mangle]
+#[link_section = ".KernelExceptionVector.text"]
+unsafe extern "C" fn _KernelExceptionVector() {
+    llvm_asm!(
+        "
+        wsr a0, EXCSAVE1 // preserve a0
+        rsr a0, EXCCAUSE // get exception cause
+
+        call0  _naked_alloc_exception
+        "
+    );
+}
+
+#[naked]
+#[no_mangle]
+#[link_section = ".UserExceptionVector.text"]
+unsafe extern "C" fn _UserExceptionVector() {
+    llvm_asm!(
+        "
+        wsr a0, EXCSAVE1 // preserve a0
+        rsr a0, EXCCAUSE // get exception cause
+
+        call0 __naked_user_exception
+        "
+    );
+}
+
+#[naked]
+#[no_mangle]
+#[link_section = ".DoubleExceptionVector.text"]
+unsafe extern "C" fn _DoubleExceptionVector() {
+    llvm_asm!(
+        "
+    wsr a0, EXCSAVE1                   // preserve a0 (EXCSAVE1 can be reused as long as there
+                                       // is no double exception in the first exception until
+                                       // EXCSAVE1 is stored to the stack.)
+    call0 __naked_double_exception     // used as long jump
+    "
+    );
+}

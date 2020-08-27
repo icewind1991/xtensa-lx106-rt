@@ -179,7 +179,7 @@ pub fn pre_init(args: TokenStream, input: TokenStream) -> TokenStream {
 /// use xtensa_lx106_rt::{exception, ExceptionContext};
 ///
 /// #[exception]
-/// fn exception_handler(context: &ExceptionContext) {
+/// fn exception_handler(cause: ExceptionCause, save_frame: &ExceptionContext) {
 ///     // ...
 /// }
 /// ```
@@ -200,7 +200,7 @@ pub fn exception(args: TokenStream, input: TokenStream) -> TokenStream {
     let valid_signature = f.sig.constness.is_none()
         && f.vis == Visibility::Inherited
         && f.sig.abi.is_none()
-        && f.sig.inputs.len() <= 1
+        && f.sig.inputs.len() <= 2
         && f.sig.generics.params.is_empty()
         && f.sig.generics.where_clause.is_none()
         && f.sig.variadic.is_none()
@@ -216,7 +216,7 @@ pub fn exception(args: TokenStream, input: TokenStream) -> TokenStream {
     if !valid_signature {
         return parse::Error::new(
             f.span(),
-            "`#[exception]` handlers must have signature `[unsafe] fn([&ExceptionContext]) [-> !]`",
+            "`#[exception]` handlers must have signature `[unsafe] fn([&ExceptionContext][, &ExceptionContext]}) [-> !]`",
         )
             .to_compile_error()
             .into();
@@ -225,7 +225,7 @@ pub fn exception(args: TokenStream, input: TokenStream) -> TokenStream {
     let args = if f.sig.inputs.is_empty() {
         quote!()
     } else {
-        quote!(frame)
+        quote!(cause, frame)
     };
 
     let (statics, stmts) = match extract_static_muts(f.block.stmts) {
@@ -252,8 +252,9 @@ pub fn exception(args: TokenStream, input: TokenStream) -> TokenStream {
         #(#cfgs)*
         #(#attrs)*
         #[doc(hidden)]
-        #[export_name = "__exception"]
+        #[export_name = "__user_exception"]
         pub unsafe extern "C" fn #tramp_ident(
+            cause: &xtensa_lx106_rt::ExceptionCause,
             frame: &xtensa_lx106_rt::ExceptionContext
         ) {
             #ident(
