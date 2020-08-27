@@ -1,9 +1,16 @@
-/* before memory.x to allow override */
 ENTRY(Reset)
 
-INCLUDE memory.x
+/* Linker script for the ESP8266 */
 
-/* after memory.x to allow override */
+MEMORY
+{
+    /* All .data/.bss/heap are in this segment. Reserve 1KB for old boot or ROM boot */
+      dram_seg  :    org = 0x3FFE8000, len = 0x18000 - 0x400
+
+      /* Functions which are critical should be put in this segment. */
+      iram_seg  :    org = 0x40100000, len = 0xFC00
+}
+
 PROVIDE(__pre_init = DefaultPreInit);
 
 PROVIDE(__exception = __default_exception);
@@ -52,6 +59,8 @@ SECTIONS {
   } >dram_seg
 
 }
+
+PROVIDE(_memmap_vecbase_reset = 0x40000000);
 
 /* Proprietary ROM functions */
 
