@@ -3,13 +3,11 @@
 #![feature(global_asm)]
 #![feature(naked_functions)]
 
-
 use r0;
 
 pub use xtensa_lx106_rt_proc_macros::{entry, pre_init, exception};
 pub use crate::exception::{ExceptionCause, ExceptionContext};
 
-pub mod interrupt;
 pub mod exception;
 pub mod rom;
 
