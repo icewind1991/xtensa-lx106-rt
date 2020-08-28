@@ -5,11 +5,12 @@
 
 use r0;
 
-pub use xtensa_lx106_rt_proc_macros::{entry, pre_init, exception};
+pub use xtensa_lx106_rt_proc_macros::{entry, pre_init, exception, interrupt};
 pub use crate::exception::{ExceptionCause, ExceptionContext};
 
 pub mod exception;
 pub mod rom;
+pub mod interrupt;
 
 #[doc(hidden)]
 #[no_mangle]

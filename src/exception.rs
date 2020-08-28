@@ -155,7 +155,7 @@ unsafe extern "C" fn _KernelExceptionVector() {
         "
         wsr a0, EXCSAVE1 // preserve a0
 
-        call0  __naked_alloc_exception
+        call0  __naked_kernel_exception
         "
     );
 }

@@ -29,6 +29,7 @@ PROVIDE(__double_exception = __default_double_exception);
 PROVIDE(__nmi_exception = __default_exception);
 PROVIDE(__debug_exception = __default_exception);
 PROVIDE(__alloc_exception = __default_exception);
+PROVIDE(__level_1_interrupt = __default_interrupt);
 
 PROVIDE(__naked_user_exception = __default_naked_user_exception);
 PROVIDE(__naked_kernel_exception = __default_naked_kernel_exception);
@@ -40,6 +41,7 @@ PROVIDE(__naked_alloc_exception = __default_naked_alloc_exception);
 /* needed to force inclusion of the vectors */
 EXTERN(__default_exception);
 EXTERN(__default_double_exception);
+EXTERN(__default_interrupt);
 
 EXTERN(__default_naked_user_exception);
 EXTERN(__default_naked_exception);

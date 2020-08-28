@@ -9,7 +9,7 @@ use proc_macro2::Span;
 use quote::quote;
 use std::collections::HashSet;
 use syn::{
-    parse, parse_macro_input, spanned::Spanned, AttrStyle, Attribute, FnArg, Ident,
+    parse, parse_macro_input, spanned::Spanned, AttrStyle, AttributeArgs, Attribute, FnArg, Ident,
     Item, ItemFn, ItemStatic, ReturnType, Stmt, Type, Visibility,
 };
 
@@ -27,20 +27,20 @@ pub fn entry(args: TokenStream, input: TokenStream) -> TokenStream {
         && f.sig.generics.where_clause.is_none()
         && f.sig.variadic.is_none()
         && match f.sig.output {
-            ReturnType::Default => false,
-            ReturnType::Type(_, ref ty) => match **ty {
-                Type::Never(_) => true,
-                _ => false,
-            },
-        };
+        ReturnType::Default => false,
+        ReturnType::Type(_, ref ty) => match **ty {
+            Type::Never(_) => true,
+            _ => false,
+        },
+    };
 
     if !valid_signature {
         return parse::Error::new(
             f.span(),
             "`#[entry]` function must have signature `[unsafe] fn() -> !`",
         )
-        .to_compile_error()
-        .into();
+            .to_compile_error()
+            .into();
     }
 
     if !args.is_empty() {
@@ -68,7 +68,7 @@ pub fn entry(args: TokenStream, input: TokenStream) -> TokenStream {
         syn::parse::<FnArg>(
             quote!(#[allow(non_snake_case)] #(#attrs)* #ident: &'static mut #ty).into(),
         )
-        .unwrap()
+            .unwrap()
     }));
     f.block.stmts = stmts;
 
@@ -113,7 +113,7 @@ pub fn entry(args: TokenStream, input: TokenStream) -> TokenStream {
         #[inline(always)]
         #f
     )
-    .into()
+        .into()
 }
 
 /// Marks a function as the pre_init function. This function is called before main and *before
@@ -132,20 +132,20 @@ pub fn pre_init(args: TokenStream, input: TokenStream) -> TokenStream {
         && f.sig.generics.where_clause.is_none()
         && f.sig.variadic.is_none()
         && match f.sig.output {
-            ReturnType::Default => true,
-            ReturnType::Type(_, ref ty) => match **ty {
-                Type::Tuple(ref tuple) => tuple.elems.is_empty(),
-                _ => false,
-            },
-        };
+        ReturnType::Default => true,
+        ReturnType::Type(_, ref ty) => match **ty {
+            Type::Tuple(ref tuple) => tuple.elems.is_empty(),
+            _ => false,
+        },
+    };
 
     if !valid_signature {
         return parse::Error::new(
             f.span(),
             "`#[pre_init]` function must have signature `unsafe fn()`",
         )
-        .to_compile_error()
-        .into();
+            .to_compile_error()
+            .into();
     }
 
     if !args.is_empty() {
@@ -168,7 +168,7 @@ pub fn pre_init(args: TokenStream, input: TokenStream) -> TokenStream {
         #(#attrs)*
         pub unsafe fn #ident() #block
     )
-    .into()
+        .into()
 }
 
 /// Marks a function as the exception handler
@@ -222,10 +222,10 @@ pub fn exception(args: TokenStream, input: TokenStream) -> TokenStream {
             .into();
     }
 
-    let args = if f.sig.inputs.is_empty() {
-        quote!()
-    } else {
-        quote!(cause, frame)
+    let args = match f.sig.inputs.len() {
+        0 => quote!(),
+        1 => quote!(cause),
+        _ => quote!(cause, frame),
     };
 
     let (statics, stmts) = match extract_static_muts(f.block.stmts) {
@@ -254,8 +254,8 @@ pub fn exception(args: TokenStream, input: TokenStream) -> TokenStream {
         #[doc(hidden)]
         #[export_name = "__user_exception"]
         pub unsafe extern "C" fn #tramp_ident(
-            cause: &xtensa_lx106_rt::ExceptionCause,
-            frame: &xtensa_lx106_rt::ExceptionContext
+            cause: xtensa_lx106_rt::ExceptionCause,
+            frame: xtensa_lx106_rt::ExceptionContext
         ) {
             #ident(
                 #args
@@ -268,9 +268,176 @@ pub fn exception(args: TokenStream, input: TokenStream) -> TokenStream {
         .into()
 }
 
+/// Marks a function as the interrupt handler, with optional interrupt level indicated
+///
+/// When the function is also marked `#[naked]`, it is a low-level interrupt handler:
+/// no entry and exit code to store processor state will be generated.
+/// The user needs to ensure that all registers which are used are saved and restored and that
+/// the proper return instruction is used.
+#[proc_macro_attribute]
+pub fn interrupt(args: TokenStream, input: TokenStream) -> TokenStream {
+    let mut f: ItemFn = syn::parse(input).expect("`#[interrupt]` must be applied to a function");
+
+    let attr_args = parse_macro_input!(args as AttributeArgs);
+
+    if attr_args.len() > 0 {
+        return parse::Error::new(
+            Span::call_site(),
+            "This attribute accepts zero arguments",
+        )
+            .to_compile_error()
+            .into();
+    }
+
+    let level = 1;
+
+    if let Err(error) = check_attr_whitelist(&f.attrs, WhiteListCaller::Interrupt) {
+        return error;
+    }
+
+    let naked = f.attrs.iter().position(|x| eq(x, "naked")).is_some();
+
+    let ident_s = if naked {
+        format!("__naked_level_{}_interrupt", level)
+    } else {
+        format!("__level_{}_interrupt", level)
+    };
+
+    if naked && (level < 2 || level > 7) {
+        return parse::Error::new(
+            f.span(),
+            "`#[naked]` `#[interrupt]` handlers must have interrupt level >=2 and <=7",
+        )
+            .to_compile_error()
+            .into();
+    } else if !naked && (level < 1 || level > 7) {
+        return parse::Error::new(
+            f.span(),
+            "`#[interrupt]` handlers must have interrupt level >=1 and <=7",
+        )
+            .to_compile_error()
+            .into();
+    }
+
+    let valid_signature = f.sig.constness.is_none()
+        && f.vis == Visibility::Inherited
+        && f.sig.abi.is_none()
+        && ((!naked && f.sig.inputs.len() <= 2) || (naked && f.sig.inputs.len() == 0))
+        && f.sig.generics.params.is_empty()
+        && f.sig.generics.where_clause.is_none()
+        && f.sig.variadic.is_none()
+        && match f.sig.output {
+        ReturnType::Default => true,
+        ReturnType::Type(_, ref ty) => match **ty {
+            Type::Tuple(ref tuple) => tuple.elems.is_empty(),
+            Type::Never(..) => true,
+            _ => false,
+        },
+    };
+
+    if !valid_signature {
+        if naked {
+            return parse::Error::new(
+                f.span(),
+                "`#[naked]` `#[interrupt]` handlers must have signature `[unsafe] fn() [-> !]`",
+            )
+                .to_compile_error()
+                .into();
+        } else {
+            return parse::Error::new(
+                f.span(),
+                "`#[interrupt]` handlers must have signature `[unsafe] fn([u32[, &ExceptionContext]]) [-> !]`",
+            )
+                .to_compile_error()
+                .into();
+        }
+    }
+
+    let (statics, stmts) = match extract_static_muts(f.block.stmts.iter().cloned()) {
+        Err(e) => return e.to_compile_error().into(),
+        Ok(x) => x,
+    };
+
+    let args = match f.sig.inputs.len() {
+        0 => quote!(),
+        1 => quote!(level),
+        _ => quote!(level, frame),
+    };
+
+    f.sig.ident = Ident::new(&format!("__xtensa_lx_106_{}", f.sig.ident), Span::call_site());
+    f.sig.inputs.extend(statics.iter().map(|statik| {
+        let ident = &statik.ident;
+        let ty = &statik.ty;
+        let attrs = &statik.attrs;
+        syn::parse::<FnArg>(quote!(#[allow(non_snake_case)] #(#attrs)* #ident: &mut #ty).into())
+            .unwrap()
+    }));
+    f.block.stmts = stmts;
+
+    let tramp_ident = Ident::new(&format!("{}_trampoline", f.sig.ident), Span::call_site());
+    let ident = &f.sig.ident;
+
+    let resource_args = statics
+        .iter()
+        .map(|statik| {
+            let (ref cfgs, ref attrs) = extract_cfgs(statik.attrs.clone());
+            let ident = &statik.ident;
+            let ty = &statik.ty;
+            let expr = &statik.expr;
+            quote! {
+                #(#cfgs)*
+                {
+                    #(#attrs)*
+                    static mut #ident: #ty = #expr;
+                    &mut #ident
+                }
+            }
+        })
+        .collect::<Vec<_>>();
+
+    let (ref cfgs, ref attrs) = extract_cfgs(f.attrs.clone());
+
+    if naked {
+        quote!(
+            #(#cfgs)*
+            #(#attrs)*
+            #[doc(hidden)]
+            #[export_name = #ident_s]
+            pub unsafe extern "C" fn #tramp_ident() {
+                #ident(
+                    #(#resource_args),*
+                )
+            }
+
+            #[inline(always)]
+            #f
+        )
+            .into()
+    } else {
+        quote!(
+            #(#cfgs)*
+            #(#attrs)*
+            #[doc(hidden)]
+            #[export_name = #ident_s]
+            pub unsafe extern "C" fn #tramp_ident(
+                level: u32,
+                frame: xtensa_lx106_rt::exception::ExceptionContext
+            ) {
+                    #ident(#args,
+                    #(#resource_args),*
+                )
+            }
+
+            #[inline(always)]
+            #f
+        )
+            .into()
+    }
+}
+
 /// Extracts `static mut` vars from the beginning of the given statements
 fn extract_static_muts(
-    stmts: impl IntoIterator<Item = Stmt>,
+    stmts: impl IntoIterator<Item=Stmt>,
 ) -> Result<(Vec<ItemStatic>, Vec<Stmt>), parse::Error> {
     let mut istmts = stmts.into_iter();
 

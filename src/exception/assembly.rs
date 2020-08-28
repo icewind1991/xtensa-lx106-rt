@@ -194,6 +194,12 @@ unsafe extern "C" fn __default_naked_user_exception() {
         SAVE_CONTEXT 1
 
         l32i    a2, sp, +XT_STK_EXCCAUSE  // put cause in a2
+        beqi    a2, 4, .Level1Interrupt
+
+        .Level1Interrupt:
+        movi    a2, 1                     // put interrupt level in a2
+        mov     a3, sp                    // put address of save frame in a3
+        call0   __level_1_interrupt       // call handler <= actual call!
 
         mov     a3, sp                    // put address of save frame in a3
         call0   __user_exception               // call handler <= actual call!
@@ -340,4 +346,9 @@ extern "C" fn __default_exception(cause: ExceptionCause, save_frame: &ExceptionC
 #[link_section = ".text"]
 extern "C" fn __default_double_exception(cause: ExceptionCause, save_frame: &ExceptionContext) {
     panic!("Double Exception: {:?}, {:08x?}", cause, save_frame)
+}
+#[no_mangle]
+#[link_section = ".text"]
+extern "C" fn __default_interrupt(level: u32, save_frame: &ExceptionContext) {
+    panic!("Interrupt: {:?}, {:08x?}", level, save_frame)
 }
