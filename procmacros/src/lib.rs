@@ -253,6 +253,7 @@ pub fn exception(args: TokenStream, input: TokenStream) -> TokenStream {
         #(#attrs)*
         #[doc(hidden)]
         #[export_name = "__user_exception"]
+        #[link_section = ".iram.text"]
         pub unsafe extern "C" fn #tramp_ident(
             cause: xtensa_lx106_rt::ExceptionCause,
             frame: xtensa_lx106_rt::ExceptionContext
@@ -268,61 +269,68 @@ pub fn exception(args: TokenStream, input: TokenStream) -> TokenStream {
         .into()
 }
 
-/// Marks a function as the interrupt handler, with optional interrupt level indicated
-///
-/// When the function is also marked `#[naked]`, it is a low-level interrupt handler:
-/// no entry and exit code to store processor state will be generated.
-/// The user needs to ensure that all registers which are used are saved and restored and that
-/// the proper return instruction is used.
+/// Marks a function as the interrupt handler for the given interrupt type
 #[proc_macro_attribute]
 pub fn interrupt(args: TokenStream, input: TokenStream) -> TokenStream {
     let mut f: ItemFn = syn::parse(input).expect("`#[interrupt]` must be applied to a function");
 
     let attr_args = parse_macro_input!(args as AttributeArgs);
 
-    if attr_args.len() > 0 {
+    let naked = f.attrs.iter().position(|x| eq(x, "naked")).is_some();
+
+    if naked {
         return parse::Error::new(
             Span::call_site(),
-            "This attribute accepts zero arguments",
+            "#[naked] interrupt handlers are not supported",
         )
             .to_compile_error()
             .into();
     }
 
-    let level = 1;
+    if attr_args.len() != 1 {
+        return parse::Error::new(
+            Span::call_site(),
+            "This attribute requires one arguments",
+        )
+            .to_compile_error()
+            .into();
+    }
+
+    let ty = match &attr_args[0] {
+        syn::NestedMeta::Lit(syn::Lit::Str(lit_str)) => lit_str.value(),
+        syn::NestedMeta::Meta(syn::Meta::Path(path)) if path.get_ident().is_some() => path.get_ident().unwrap().to_string(),
+        _ => {
+            return parse::Error::new(
+                Span::call_site(),
+                "This attribute accepts a string attribute",
+            )
+                .to_compile_error()
+                .into();
+        }
+    };
+
+    match ty.as_str() {
+        "slc" | "spi" | "gpio" | "uart" | "compare" | "soft" | "timer1" => (),
+        _ => {
+            return parse::Error::new(
+                Span::call_site(),
+                format!("Invalid interrupt type {}, the following types are supported:  slc, spi, gpio, uart, compare, soft and timer1", ty),
+            )
+                .to_compile_error()
+                .into();
+        }
+    }
 
     if let Err(error) = check_attr_whitelist(&f.attrs, WhiteListCaller::Interrupt) {
         return error;
     }
 
-    let naked = f.attrs.iter().position(|x| eq(x, "naked")).is_some();
-
-    let ident_s = if naked {
-        format!("__naked_level_{}_interrupt", level)
-    } else {
-        format!("__level_{}_interrupt", level)
-    };
-
-    if naked && (level < 2 || level > 7) {
-        return parse::Error::new(
-            f.span(),
-            "`#[naked]` `#[interrupt]` handlers must have interrupt level >=2 and <=7",
-        )
-            .to_compile_error()
-            .into();
-    } else if !naked && (level < 1 || level > 7) {
-        return parse::Error::new(
-            f.span(),
-            "`#[interrupt]` handlers must have interrupt level >=1 and <=7",
-        )
-            .to_compile_error()
-            .into();
-    }
+    let ident_s = format!("__{}_interrupt", ty);
 
     let valid_signature = f.sig.constness.is_none()
         && f.vis == Visibility::Inherited
         && f.sig.abi.is_none()
-        && ((!naked && f.sig.inputs.len() <= 2) || (naked && f.sig.inputs.len() == 0))
+        && ((!naked && f.sig.inputs.len() <= 1) || (naked && f.sig.inputs.len() == 0))
         && f.sig.generics.params.is_empty()
         && f.sig.generics.where_clause.is_none()
         && f.sig.variadic.is_none()
@@ -336,21 +344,12 @@ pub fn interrupt(args: TokenStream, input: TokenStream) -> TokenStream {
     };
 
     if !valid_signature {
-        if naked {
-            return parse::Error::new(
-                f.span(),
-                "`#[naked]` `#[interrupt]` handlers must have signature `[unsafe] fn() [-> !]`",
-            )
-                .to_compile_error()
-                .into();
-        } else {
-            return parse::Error::new(
-                f.span(),
-                "`#[interrupt]` handlers must have signature `[unsafe] fn([u32[, &ExceptionContext]]) [-> !]`",
-            )
-                .to_compile_error()
-                .into();
-        }
+        return parse::Error::new(
+            f.span(),
+            "`#[interrupt]` handlers must have signature `[unsafe] fn([u32[, &ExceptionContext]]) [-> !]`",
+        )
+            .to_compile_error()
+            .into();
     }
 
     let (statics, stmts) = match extract_static_muts(f.block.stmts.iter().cloned()) {
@@ -360,8 +359,8 @@ pub fn interrupt(args: TokenStream, input: TokenStream) -> TokenStream {
 
     let args = match f.sig.inputs.len() {
         0 => quote!(),
-        1 => quote!(level),
-        _ => quote!(level, frame),
+        1 => quote!(frame),
+        _ => unreachable!()
     };
 
     f.sig.ident = Ident::new(&format!("__xtensa_lx_106_{}", f.sig.ident), Span::call_site());
@@ -397,42 +396,24 @@ pub fn interrupt(args: TokenStream, input: TokenStream) -> TokenStream {
 
     let (ref cfgs, ref attrs) = extract_cfgs(f.attrs.clone());
 
-    if naked {
-        quote!(
-            #(#cfgs)*
-            #(#attrs)*
-            #[doc(hidden)]
-            #[export_name = #ident_s]
-            pub unsafe extern "C" fn #tramp_ident() {
-                #ident(
-                    #(#resource_args),*
-                )
-            }
+    quote!(
+        #(#cfgs)*
+        #(#attrs)*
+        #[doc(hidden)]
+        #[export_name = #ident_s]
+        #[link_section = ".iram.text"]
+        pub unsafe extern "C" fn #tramp_ident(
+            frame: &xtensa_lx106_rt::exception::ExceptionContext
+        ) {
+                #ident(#args,
+                #(#resource_args),*
+            )
+        }
 
-            #[inline(always)]
-            #f
-        )
-            .into()
-    } else {
-        quote!(
-            #(#cfgs)*
-            #(#attrs)*
-            #[doc(hidden)]
-            #[export_name = #ident_s]
-            pub unsafe extern "C" fn #tramp_ident(
-                level: u32,
-                frame: xtensa_lx106_rt::exception::ExceptionContext
-            ) {
-                    #ident(#args,
-                    #(#resource_args),*
-                )
-            }
-
-            #[inline(always)]
-            #f
-        )
-            .into()
-    }
+        #[inline(always)]
+        #f
+    )
+        .into()
 }
 
 /// Extracts `static mut` vars from the beginning of the given statements

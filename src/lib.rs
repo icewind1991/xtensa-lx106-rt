@@ -14,6 +14,7 @@ pub mod interrupt;
 
 #[doc(hidden)]
 #[no_mangle]
+#[link_section = ".iram.text"]
 pub unsafe extern "C" fn DefaultPreInit() {}
 
 const CRYSTAL_26MHZ: (u8, u8) = (136, 145);

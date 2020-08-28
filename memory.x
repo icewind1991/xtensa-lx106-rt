@@ -9,7 +9,7 @@ MEMORY
 
       /* Functions which are critical should be put in this segment. */
       vectors_seg :  org = 0x40100000, len = 0x400
-      iram_seg :     org = 0x40100400, len = 0x8000
+      iram_seg :     org = 0x40100400, len = 0x8000 - 0x0400
 
       /* external flash
          The 0x20 offset is a convenience for the app binary image generation.
@@ -29,7 +29,14 @@ PROVIDE(__double_exception = __default_double_exception);
 PROVIDE(__nmi_exception = __default_exception);
 PROVIDE(__debug_exception = __default_exception);
 PROVIDE(__alloc_exception = __default_exception);
-PROVIDE(__level_1_interrupt = __default_interrupt);
+PROVIDE(__slc_interrupt = __default_interrupt);
+PROVIDE(__spi_interrupt = __default_interrupt);
+PROVIDE(__gpio_interrupt = __default_interrupt);
+PROVIDE(__uart_interrupt = __default_interrupt);
+PROVIDE(__compare_interrupt = __default_interrupt);
+PROVIDE(__soft_interrupt = __default_interrupt);
+PROVIDE(__wdt_interrupt = __default_interrupt);
+PROVIDE(__timer1_interrupt = __default_interrupt);
 
 PROVIDE(__naked_user_exception = __default_naked_user_exception);
 PROVIDE(__naked_kernel_exception = __default_naked_kernel_exception);
@@ -74,12 +81,17 @@ SECTIONS {
 
   .iram.text :
   {
-    _stext = .;
     _text_start = ABSOLUTE(.);
-    *(.literal .text .literal.* .text.*)
+    *(.iram.literal .iram,text .iram.literal.* .iram.text.*)
     _text_end = ABSOLUTE(.);
-    _etext = .;
   } > iram_seg
+
+  .irom.text :
+    {
+      _text_start = ABSOLUTE(.);
+      *(.literal .text .literal.* .text.*)
+      _text_end = ABSOLUTE(.);
+    } > iram_seg
 
   /* Shared RAM */
   .dram0.bss (NOLOAD) :
