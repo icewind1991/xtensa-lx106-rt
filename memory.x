@@ -55,19 +55,17 @@ SECTIONS {
   {
     . = 0x0;
     _init_start = ABSOLUTE(.);
-    . = 0x0;
-    KEEP(*(.DebugException.text));
     . = 0x10;
-    KEEP(*(.NMIException.text));
+    KEEP(*(.DebugException.text));
     . = 0x20;
-    KEEP(*(.KernelException.text));
+    KEEP(*(.NMIException.text));
     . = 0x40;
-    KEEP(*(.UserException.text));
+    KEEP(*(.KernelException.text));
     . = 0x50;
-    KEEP(*(.DoubleException.text));
-    . = 0x60;
-    KEEP(*(.Reset.text));
+    KEEP(*(.UserException.text));
     . = 0x70;
+    KEEP(*(.DoubleException.text));
+    . = 0x80;
 
     _init_end = ABSOLUTE(.);
   } > vectors_seg

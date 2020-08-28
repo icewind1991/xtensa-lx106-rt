@@ -193,14 +193,11 @@ unsafe extern "C" fn __default_naked_user_exception() {
         "
         SAVE_CONTEXT 1
 
-        l32i    a6, sp, +XT_STK_EXCCAUSE  // put cause in a6 = a2 in callee
+        l32i    a2, sp, +XT_STK_EXCCAUSE  // put cause in a2
 
-        mov     a7, sp                    // put address of save frame in a7=a3 in callee
+        mov     a3, sp                    // put address of save frame in a3
         call0   __user_exception               // call handler <= actual call!
 
-        j       .RestoreContext
-
-        .RestoreContext:
         RESTORE_CONTEXT
 
         .byte 0x00, 0x30, 0x00            // rfe   // PS.EXCM is cleared
@@ -221,8 +218,8 @@ unsafe extern "C" fn __default_naked_double_exception() {
         "
         SAVE_CONTEXT double
 
-        l32i    a6, sp, +XT_STK_EXCCAUSE  // put cause in a6 = a2 in callee
-        mov     a7, sp                    // put address of save frame in a7=a3 in callee
+        l32i    a2, sp, +XT_STK_EXCCAUSE  // put cause in a2
+        mov     a3, sp                    // put address of save frame in a3
         call0   __double_exception        // call handler <= actual call!
 
         RESTORE_CONTEXT
@@ -245,9 +242,9 @@ unsafe extern "C" fn __default_naked_kernel_exception() {
         "
         SAVE_CONTEXT 1
 
-        l32i    a6, sp, +XT_STK_EXCCAUSE  // put cause in a6 = a2 in callee
+        l32i    a2, sp, +XT_STK_EXCCAUSE  // put cause in a2
 
-        mov     a7, sp                    // put address of save frame in a7=a3 in callee
+        mov     a3, sp                    // put address of save frame in a3
         call0   __kernel_exception               // call handler <= actual call!
 
         RESTORE_CONTEXT
@@ -270,9 +267,9 @@ unsafe extern "C" fn __default_naked_nmi_exception() {
         "
         SAVE_CONTEXT 1
 
-        l32i    a6, sp, +XT_STK_EXCCAUSE  // put cause in a6 = a2 in callee
+        l32i    a2, sp, +XT_STK_EXCCAUSE  // put cause in a2
 
-        mov     a7, sp                    // put address of save frame in a7=a3 in callee
+        mov     a3, sp                    // put address of save frame in a3
         call0   __nmi_exception               // call handler <= actual call!
 
         RESTORE_CONTEXT
@@ -295,9 +292,9 @@ unsafe extern "C" fn __default_naked_debug_exception() {
         "
         SAVE_CONTEXT 1
 
-        l32i    a6, sp, +XT_STK_EXCCAUSE  // put cause in a6 = a2 in callee
+        l32i    a2, sp, +XT_STK_EXCCAUSE  // put cause in a2
 
-        mov     a7, sp                    // put address of save frame in a7=a3 in callee
+        mov     a3, sp                    // put address of save frame in a3
         call0   __debug_exception               // call handler <= actual call!
 
         RESTORE_CONTEXT
@@ -315,14 +312,14 @@ unsafe extern "C" fn __default_naked_debug_exception() {
 #[naked]
 #[no_mangle]
 #[link_section = ".text"]
-unsafe extern "C" fn __naked_alloc_exception() {
+unsafe extern "C" fn __default_naked_alloc_exception() {
     llvm_asm!(
         "
         SAVE_CONTEXT 1
 
-        l32i    a6, sp, +XT_STK_EXCCAUSE  // put cause in a6 = a2 in callee
+        l32i    a2, sp, +XT_STK_EXCCAUSE  // put cause in a2
 
-        mov     a7, sp                    // put address of save frame in a7=a3 in callee
+        mov     a3, sp                    // put address of save frame in a3
         call0   __alloc_exception               // call handler <= actual call!
 
         RESTORE_CONTEXT

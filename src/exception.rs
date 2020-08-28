@@ -98,7 +98,7 @@ pub enum ExceptionCause {
 /// Must be aligned with assembly frame format in assembly.rs
 #[repr(C)]
 #[allow(non_snake_case)]
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ExceptionContext {
     PC: u32,
     PS: u32,
@@ -125,50 +125,48 @@ pub struct ExceptionContext {
 
 #[naked]
 #[no_mangle]
-#[link_section = ".DebugExceptionVector.text"]
+#[link_section = ".DebugException.text"]
 unsafe extern "C" fn _DebugExceptionVector() {
     llvm_asm!(
         "
-    wsr a0, EXCSAVE2 // preserve a0
-    call0 __naked_debug_exception     // used as long jump
-    "
+        wsr a0, EXCSAVE2 // preserve a0
+        call0 __naked_debug_exception     // used as long jump
+        "
     );
 }
 
 #[naked]
 #[no_mangle]
-#[link_section = ".NMIExceptionVector.text"]
+#[link_section = ".NMIException.text"]
 unsafe extern "C" fn _NMIExceptionVector() {
     llvm_asm!(
         "
-    wsr a0, EXCSAVE3 // preserve a0
-    call0 __naked_nmi_exception     // used as long jump
-    "
+        wsr a0, EXCSAVE3 // preserve a0
+        call0 __naked_nmi_exception     // used as long jump
+        "
     );
 }
 
 #[naked]
 #[no_mangle]
-#[link_section = ".KernelExceptionVector.text"]
+#[link_section = ".KernelException.text"]
 unsafe extern "C" fn _KernelExceptionVector() {
     llvm_asm!(
         "
         wsr a0, EXCSAVE1 // preserve a0
-        rsr a0, EXCCAUSE // get exception cause
 
-        call0  _naked_alloc_exception
+        call0  __naked_alloc_exception
         "
     );
 }
 
 #[naked]
 #[no_mangle]
-#[link_section = ".UserExceptionVector.text"]
+#[link_section = ".UserException.text"]
 unsafe extern "C" fn _UserExceptionVector() {
     llvm_asm!(
         "
         wsr a0, EXCSAVE1 // preserve a0
-        rsr a0, EXCCAUSE // get exception cause
 
         call0 __naked_user_exception
         "
@@ -177,14 +175,14 @@ unsafe extern "C" fn _UserExceptionVector() {
 
 #[naked]
 #[no_mangle]
-#[link_section = ".DoubleExceptionVector.text"]
+#[link_section = ".DoubleException.text"]
 unsafe extern "C" fn _DoubleExceptionVector() {
     llvm_asm!(
         "
-    wsr a0, EXCSAVE1                   // preserve a0 (EXCSAVE1 can be reused as long as there
-                                       // is no double exception in the first exception until
-                                       // EXCSAVE1 is stored to the stack.)
-    call0 __naked_double_exception     // used as long jump
+        wsr a0, EXCSAVE1                   // preserve a0 (EXCSAVE1 can be reused as long as there
+                                           // is no double exception in the first exception until
+                                           // EXCSAVE1 is stored to the stack.)
+        call0 __naked_double_exception     // used as long jump
     "
     );
 }
