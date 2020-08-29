@@ -310,11 +310,11 @@ pub fn interrupt(args: TokenStream, input: TokenStream) -> TokenStream {
     };
 
     match ty.as_str() {
-        "slc" | "spi" | "gpio" | "uart" | "compare" | "soft" | "timer1" => (),
+        "slc" | "spi" | "gpio" | "uart" | "ccompare" | "soft" | "timer1" => (),
         _ => {
             return parse::Error::new(
                 Span::call_site(),
-                format!("Invalid interrupt type {}, the following types are supported:  slc, spi, gpio, uart, compare, soft and timer1", ty),
+                format!("Invalid interrupt type {}, the following types are supported:  slc, spi, gpio, uart, ccompare, soft and timer1", ty),
             )
                 .to_compile_error()
                 .into();

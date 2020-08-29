@@ -27,6 +27,12 @@ global_asm!(
     .set XT_STK_FRMSZ,         256  // needs to be multiple of 16 and at least 16 free
                                 // (for base save region)
                                 // multiple of 256 allows use of addmi instruction
+
+    .set PS_INTLEVEL_EXCM, 3
+    .set PS_INTLEVEL_MASK, 0x0000000f
+    .set PS_EXCM,          0x00000010
+    .set PS_UM,            0x00000020
+    .set PS_WOE,           0x00040000
     "
 );
 
@@ -121,6 +127,21 @@ global_asm!(
     s32i    a0, sp, +XT_STK_EXCVADDR
     .endif
 
+    // clear EXCM so other exceptions like window overflow can be handled normally again.
+    // If level 1 interrupt or exception then block level 1 interrupts (for higher level
+    // interrupts, this is done automatically).
+    rsr     a0, PS
+    .ifc \level,1
+    movi    a2, ~(PS_EXCM|PS_INTLEVEL_MASK)
+    and     a0, a0, a2
+    movi    a2, 1
+    or      a0, a0, a2
+    .else
+    movi    a2, ~PS_EXCM
+    and     a0, a0, a2
+    .endif
+
+    wsr     a0, PS
     rsync                              // wait for WSR.PS to complete
 
     call0   save_context
@@ -161,7 +182,7 @@ unsafe extern "C" fn restore_context() {
 
 global_asm!(
     r#"
-    .macro RESTORE_CONTEXT
+    .macro RESTORE_CONTEXT level:req
 
     // Restore context and return
     call0   restore_context
@@ -197,7 +218,7 @@ unsafe extern "C" fn __default_naked_user_exception() {
         beqi    a2, 4, .Level1Interrupt
 
         mov     a3, sp                    // put address of save frame in a3
-        call0   __user_exception               // call handler <= actual call!
+        call0   __user_exception          // call handler <= actual call!
 
         j .RestoreContext
 
@@ -206,10 +227,10 @@ unsafe extern "C" fn __default_naked_user_exception() {
         rsr.INTENABLE a3
         and a2, a2, a3
         mov     a3, sp                    // put address of save frame in a3
-        call0   __interrupt_trampoline       // call handler <= actual call!
+        call0   __interrupt_trampoline    // call handler <= actual call!
 
         .RestoreContext:
-        RESTORE_CONTEXT
+        RESTORE_CONTEXT 1
 
         .byte 0x00, 0x30, 0x00            // rfe   // PS.EXCM is cleared
                                           // TODO: 20200509, not supported in llvm yet
@@ -233,7 +254,7 @@ unsafe extern "C" fn __default_naked_double_exception() {
         mov     a3, sp                    // put address of save frame in a3
         call0   __double_exception        // call handler <= actual call!
 
-        RESTORE_CONTEXT
+        RESTORE_CONTEXT double
 
         .byte 0x00, 0x32, 0x00            // rfde
                                           // TODO: 20200509, not supported in llvm yet
@@ -258,7 +279,7 @@ unsafe extern "C" fn __default_naked_kernel_exception() {
         mov     a3, sp                    // put address of save frame in a3
         call0   __kernel_exception               // call handler <= actual call!
 
-        RESTORE_CONTEXT
+        RESTORE_CONTEXT 1
 
         .byte 0x00, 0x30, 0x00            // rfe   // PS.EXCM is cleared
                                           // TODO: 20200509, not supported in llvm yet
@@ -283,7 +304,7 @@ unsafe extern "C" fn __default_naked_nmi_exception() {
         mov     a3, sp                    // put address of save frame in a3
         call0   __nmi_exception               // call handler <= actual call!
 
-        RESTORE_CONTEXT
+        RESTORE_CONTEXT 1
 
         .byte 0x00, 0x30, 0x00            // rfe   // PS.EXCM is cleared
                                           // TODO: 20200509, not supported in llvm yet
@@ -308,7 +329,7 @@ unsafe extern "C" fn __default_naked_debug_exception() {
         mov     a3, sp                    // put address of save frame in a3
         call0   __debug_exception               // call handler <= actual call!
 
-        RESTORE_CONTEXT
+        RESTORE_CONTEXT 1
 
         .byte 0x00, 0x30, 0x00            // rfe   // PS.EXCM is cleared
                                           // TODO: 20200509, not supported in llvm yet
@@ -333,7 +354,7 @@ unsafe extern "C" fn __default_naked_alloc_exception() {
         mov     a3, sp                    // put address of save frame in a3
         call0   __alloc_exception         // call handler <= actual call!
 
-        RESTORE_CONTEXT
+        RESTORE_CONTEXT 1
 
         .byte 0x00, 0x30, 0x00            // rfe   // PS.EXCM is cleared
                                           // TODO: 20200509, not supported in llvm yet

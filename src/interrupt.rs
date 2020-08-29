@@ -6,7 +6,7 @@ pub enum InterruptType {
     SPI = 2,
     GPIO = 4,
     UART = 5,
-    COMPARE = 6,
+    CCOMPARE = 6,
     SOFT = 7,
     WDT = 8,
     TIMER1 = 9,
@@ -17,7 +17,7 @@ extern "C" {
     fn __spi_interrupt(context: &ExceptionContext);
     fn __gpio_interrupt(context: &ExceptionContext);
     fn __uart_interrupt(context: &ExceptionContext);
-    fn __compare_interrupt(context: &ExceptionContext);
+    fn __ccompare_interrupt(context: &ExceptionContext);
     fn __soft_interrupt(context: &ExceptionContext);
     fn __wdt_interrupt(context: &ExceptionContext);
     fn __timer1_interrupt(context: &ExceptionContext);
@@ -35,7 +35,7 @@ impl InterruptType {
                 Self::SPI => __spi_interrupt(context),
                 Self::GPIO => __gpio_interrupt(context),
                 Self::UART => __uart_interrupt(context),
-                Self::COMPARE => __compare_interrupt(context),
+                Self::CCOMPARE => __ccompare_interrupt(context),
                 Self::SOFT => __soft_interrupt(context),
                 Self::WDT => __wdt_interrupt(context),
                 Self::TIMER1 => __timer1_interrupt(context),
@@ -59,8 +59,8 @@ extern "C" fn __interrupt_trampoline(mask: u32, context: ExceptionContext) {
     if InterruptType::UART.mask() & mask > 0 {
         InterruptType::UART.call(&context);
     };
-    if InterruptType::COMPARE.mask() & mask > 0 {
-        InterruptType::COMPARE.call(&context);
+    if InterruptType::CCOMPARE.mask() & mask > 0 {
+        InterruptType::CCOMPARE.call(&context);
     };
     if InterruptType::SOFT.mask() & mask > 0 {
         InterruptType::SOFT.call(&context);
@@ -105,4 +105,26 @@ pub fn disable_interrupt(ty: InterruptType) -> u32 {
         );
     }
     mask
+}
+
+pub fn timer0_read() -> u32 {
+    let count: u32;
+    unsafe {
+        llvm_asm!("esync; rsr $0,ccompare0":"=a" (count))
+    }
+    count
+}
+
+pub fn timer0_write(count: u32) {
+    unsafe {
+        llvm_asm!("wsr $0,ccompare0; esync"::"a" (count) : "memory")
+    }
+}
+
+pub fn get_cycle_count() -> u32 {
+    let count: u32;
+    unsafe {
+        llvm_asm!("rsr $0,ccount":"=a"(count))
+    }
+    count
 }
