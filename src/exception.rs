@@ -129,7 +129,7 @@ pub struct ExceptionContext {
 unsafe extern "C" fn _DebugExceptionVector() {
     llvm_asm!(
         "
-        wsr a0, EXCSAVE2 // preserve a0
+        wsr a0, EXCSAVE1 // preserve a0
         call0 __naked_debug_exception     // used as long jump
         "
     );
@@ -141,7 +141,7 @@ unsafe extern "C" fn _DebugExceptionVector() {
 unsafe extern "C" fn _NMIExceptionVector() {
     llvm_asm!(
         "
-        wsr a0, EXCSAVE3 // preserve a0
+        wsr a0, EXCSAVE1 // preserve a0
         call0 __naked_nmi_exception     // used as long jump
         "
     );

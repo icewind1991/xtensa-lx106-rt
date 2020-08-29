@@ -24,10 +24,6 @@ global_asm!(
     .set XT_STK_EXCCAUSE,       76
     .set XT_STK_EXCVADDR,       80
 
-    .set XT_STK_FRMSZ,         256  // needs to be multiple of 16 and at least 16 free
-                                // (for base save region)
-                                // multiple of 256 allows use of addmi instruction
-
     .set PS_INTLEVEL_EXCM, 3
     .set PS_INTLEVEL_MASK, 0x0000000f
     .set PS_EXCM,          0x00000010
@@ -39,7 +35,6 @@ global_asm!(
 /// Save processor state to stack.
 ///
 /// *Must only be called with call0.*
-/// *For spill all window registers to work WOE must be enabled on entry
 ///
 /// Saves all registers except PC, PS, A0, A1
 ///
@@ -77,10 +72,6 @@ unsafe extern "C" fn save_context() {
         rsr     a3,  SAR
         s32i    a3,  sp, +XT_STK_SAR
 
-        // Spill all windows (up to 64) to the stack
-        // Uses the overflow exception: doing a noop write to the high registers
-        // will trigger if needed. WOE needs to be enabled before this routine.
-
         ret
     "
     )
@@ -89,10 +80,8 @@ unsafe extern "C" fn save_context() {
 global_asm!(
     r#"
     .macro SAVE_CONTEXT level:req
-    mov     a0, a1                     // save a1/sp
-    addmi   sp, sp, -XT_STK_FRMSZ      // only allow multiple of 256
 
-    s32i    a0, sp, +XT_STK_A1         // save interruptee's A1/SP
+    s32i    a1, sp, +XT_STK_A1         // save interruptee's A1/SP
 
     .ifc \level,double
     rsr     a0, DEPC
@@ -191,6 +180,7 @@ global_asm!(
     l32i    a0, sp, +XT_STK_PS        // retrieve interruptee's PS
     wsr     a0, PS
     l32i    a0, sp, +XT_STK_PC        // retrieve interruptee's PC
+    wsr     a0, EPC\level
     .endif
 
     l32i    a0, sp, +XT_STK_A0        // retrieve interruptee's A0
@@ -226,13 +216,16 @@ unsafe extern "C" fn __default_naked_user_exception() {
         rsr.INTERRUPT a2                  // out interrupt type in a2
         rsr.INTENABLE a3
         and a2, a2, a3
+
+        wsr.INTCLEAR a3
+
         mov     a3, sp                    // put address of save frame in a3
         call0   __interrupt_trampoline    // call handler <= actual call!
 
         .RestoreContext:
         RESTORE_CONTEXT 1
 
-        .byte 0x00, 0x30, 0x00            // rfe   // PS.EXCM is cleared
+        .byte 0x00, 0x30, 0x00            // rfe
                                           // TODO: 20200509, not supported in llvm yet
         "
     )
@@ -256,8 +249,7 @@ unsafe extern "C" fn __default_naked_double_exception() {
 
         RESTORE_CONTEXT double
 
-        .byte 0x00, 0x32, 0x00            // rfde
-                                          // TODO: 20200509, not supported in llvm yet
+        .byte 0x00, 0x30, 0x00            // rfe
         "
     )
 }
@@ -306,8 +298,7 @@ unsafe extern "C" fn __default_naked_nmi_exception() {
 
         RESTORE_CONTEXT 1
 
-        .byte 0x00, 0x30, 0x00            // rfe   // PS.EXCM is cleared
-                                          // TODO: 20200509, not supported in llvm yet
+        .byte 0x00, 0x30, 0x00            // rfe
         "
     )
 }
@@ -331,8 +322,7 @@ unsafe extern "C" fn __default_naked_debug_exception() {
 
         RESTORE_CONTEXT 1
 
-        .byte 0x00, 0x30, 0x00            // rfe   // PS.EXCM is cleared
-                                          // TODO: 20200509, not supported in llvm yet
+        .byte 0x00, 0x30, 0x00            // rfe
         "
     )
 }
@@ -356,8 +346,7 @@ unsafe extern "C" fn __default_naked_alloc_exception() {
 
         RESTORE_CONTEXT 1
 
-        .byte 0x00, 0x30, 0x00            // rfe   // PS.EXCM is cleared
-                                          // TODO: 20200509, not supported in llvm yet
+        .byte 0x00, 0x30, 0x00            // rfe
         "
     )
 }

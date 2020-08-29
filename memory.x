@@ -126,8 +126,6 @@ SECTIONS {
 
 }
 
-PROVIDE(_memmap_vecbase_reset = 0x40000000);
-
 /* Proprietary ROM functions */
 
 PROVIDE ( rom_software_reboot = 0x40000080 );
