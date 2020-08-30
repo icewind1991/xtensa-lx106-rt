@@ -45,7 +45,7 @@ impl InterruptType {
 }
 
 #[no_mangle]
-#[link_section = ".iram.text"]
+#[link_section = ".rwtext"]
 extern "C" fn __interrupt_trampoline(mask: u32, context: ExceptionContext) {
     if InterruptType::SLC.mask() & mask > 0 {
         InterruptType::SLC.call(&context);

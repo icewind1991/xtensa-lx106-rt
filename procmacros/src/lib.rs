@@ -253,7 +253,7 @@ pub fn exception(args: TokenStream, input: TokenStream) -> TokenStream {
         #(#attrs)*
         #[doc(hidden)]
         #[export_name = "__user_exception"]
-        #[link_section = ".iram.text"]
+        #[link_section = ".rwtext"]
         pub unsafe extern "C" fn #tramp_ident(
             cause: xtensa_lx106_rt::ExceptionCause,
             frame: xtensa_lx106_rt::ExceptionContext
@@ -401,12 +401,12 @@ pub fn interrupt(args: TokenStream, input: TokenStream) -> TokenStream {
         #(#attrs)*
         #[doc(hidden)]
         #[export_name = #ident_s]
-        #[link_section = ".iram.text"]
+        #[link_section = ".rwtext"]
         pub unsafe extern "C" fn #tramp_ident(
             frame: &xtensa_lx106_rt::exception::ExceptionContext
         ) {
-                #ident(#args,
-                #(#resource_args),*
+                #ident(#args
+                #(,#resource_args)*
             )
         }
 

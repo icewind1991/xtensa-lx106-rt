@@ -50,7 +50,7 @@ global_asm!(
 ///     EPC1 is changed
 #[naked]
 #[no_mangle]
-#[link_section = ".iram.text"]
+#[link_section = ".rwtext"]
 unsafe extern "C" fn save_context() {
     llvm_asm!(
         "
@@ -141,7 +141,7 @@ global_asm!(
 
 #[naked]
 #[no_mangle]
-#[link_section = ".iram.text"]
+#[link_section = ".rwtext"]
 unsafe extern "C" fn restore_context() {
     llvm_asm!(
         "
@@ -198,13 +198,13 @@ global_asm!(
 ///    * A0 stored in EXCSAVE1
 #[naked]
 #[no_mangle]
-#[link_section = ".iram.text"]
+#[link_section = ".rwtext"]
 unsafe extern "C" fn __default_naked_user_exception() {
     llvm_asm!(
         "
         SAVE_CONTEXT 1
 
-        l32i    a2, sp, +XT_STK_EXCCAUSE  // put cause in a2
+        rsr.EXCCAUSE a2                   // put cause in a2
         beqi    a2, 4, .Level1Interrupt
 
         mov     a3, sp                    // put address of save frame in a3
@@ -237,7 +237,7 @@ unsafe extern "C" fn __default_naked_user_exception() {
 ///    * A0 stored in ???
 #[naked]
 #[no_mangle]
-#[link_section = ".iram.text"]
+#[link_section = ".rwtext"]
 unsafe extern "C" fn __default_naked_double_exception() {
     llvm_asm!(
         "
@@ -260,7 +260,7 @@ unsafe extern "C" fn __default_naked_double_exception() {
 ///    * A0 stored in EXCSAVE1
 #[naked]
 #[no_mangle]
-#[link_section = ".iram.text"]
+#[link_section = ".rwtext"]
 unsafe extern "C" fn __default_naked_kernel_exception() {
     llvm_asm!(
         "
@@ -285,7 +285,7 @@ unsafe extern "C" fn __default_naked_kernel_exception() {
 ///    * A0 stored in EXCSAVE1
 #[naked]
 #[no_mangle]
-#[link_section = ".iram.text"]
+#[link_section = ".rwtext"]
 unsafe extern "C" fn __default_naked_nmi_exception() {
     llvm_asm!(
         "
@@ -309,7 +309,7 @@ unsafe extern "C" fn __default_naked_nmi_exception() {
 ///    * A0 stored in EXCSAVE1
 #[naked]
 #[no_mangle]
-#[link_section = ".iram.text"]
+#[link_section = ".rwtext"]
 unsafe extern "C" fn __default_naked_debug_exception() {
     llvm_asm!(
         "
@@ -333,7 +333,7 @@ unsafe extern "C" fn __default_naked_debug_exception() {
 ///    * A0 stored in EXCSAVE1
 #[naked]
 #[no_mangle]
-#[link_section = ".iram.text"]
+#[link_section = ".rwtext"]
 unsafe extern "C" fn __default_naked_alloc_exception() {
     llvm_asm!(
         "
@@ -352,18 +352,18 @@ unsafe extern "C" fn __default_naked_alloc_exception() {
 }
 
 #[no_mangle]
-#[link_section = ".iram.text"]
+#[link_section = ".rwtext"]
 extern "C" fn __default_exception(cause: ExceptionCause, save_frame: &ExceptionContext) {
     panic!("Exception: {:?}, {:08x?}", cause, save_frame)
 }
 
 #[no_mangle]
-#[link_section = ".iram.text"]
+#[link_section = ".rwtext"]
 extern "C" fn __default_double_exception(cause: ExceptionCause, save_frame: &ExceptionContext) {
     panic!("Double Exception: {:?}, {:08x?}", cause, save_frame)
 }
 #[no_mangle]
-#[link_section = ".iram.text"]
+#[link_section = ".rwtext"]
 extern "C" fn __default_interrupt(save_frame: &ExceptionContext) {
     panic!("Interrupt: {:08x?}", save_frame)
 }

@@ -10,15 +10,7 @@ MEMORY
       /* Functions which are critical should be put in this segment. */
       vectors_seg :  org = 0x40100000, len = 0x400
       iram_seg :     org = 0x40100400, len = 0x8000 - 0x0400
-
-      /* external flash
-         The 0x20 offset is a convenience for the app binary image generation.
-         Flash cache has 32KB pages. The .bin file which is flashed to the chip
-         has a 0x08 byte file header, and each segment has a 0x08 byte segment
-         header. Setting this offset makes it simple to meet the flash cache MMU's
-         constraint that.)
-      */
-      irom_seg ( R )        : ORIGIN = 0x40200020, len = 0x100000 - 0x20
+      irom_seg :     org = 0x40201010, len = 0xfeff0
 }
 
 PROVIDE(__pre_init = DefaultPreInit);
@@ -79,18 +71,16 @@ SECTIONS {
     _init_end = ABSOLUTE(.);
   } > vectors_seg
 
-  .iram.text :
+  .rwtext :
   {
     _text_start = ABSOLUTE(.);
-    *(.iram.literal .iram,text .iram.literal.* .iram.text.*)
+    *(.rwtext.literal .rwtext .rwtext.literal.* .rwtext.text.*)
     _text_end = ABSOLUTE(.);
   } > iram_seg
 
-  .irom.text :
+  .text :
     {
-      _text_start = ABSOLUTE(.);
       *(.literal .text .literal.* .text.*)
-      _text_end = ABSOLUTE(.);
     } > iram_seg
 
   /* Shared RAM */
