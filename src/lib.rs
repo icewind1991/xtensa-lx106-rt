@@ -9,7 +9,6 @@ pub use xtensa_lx106_rt_proc_macros::{entry, pre_init, exception, interrupt};
 pub use crate::exception::{ExceptionCause, ExceptionContext};
 
 pub mod exception;
-pub mod rom;
 pub mod interrupt;
 
 #[doc(hidden)]
@@ -37,9 +36,13 @@ pub fn set_crystal_frequency(crystal: CrystalFrequency) {
     }
 }
 
+extern "C" {
+    fn rom_i2c_writeReg(block: u8, host_id: u8, reg_add: u8, data: u8);
+}
+
 unsafe fn configure_pll((reg1, reg2): (u8, u8)) {
-    rom::rom_i2c_writeReg(103, 4, 1, reg1);
-    rom::rom_i2c_writeReg(103, 4, 2, reg2);
+    rom_i2c_writeReg(103, 4, 1, reg1);
+    rom_i2c_writeReg(103, 4, 2, reg2);
 }
 
 #[doc(hidden)]
