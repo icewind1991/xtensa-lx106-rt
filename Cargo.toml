@@ -10,7 +10,7 @@ readme = "README.md"
 
 [dependencies]
 r0 = "0.2.2"
-xtensa-lx106-rt-proc-macros = { path = "procmacros", version = "=0.1.0" }
+xtensa-lx106-rt-proc-macros = { path = "procmacros", version = "=0.1.1" }
 
 [profile.dev]
 lto = true 

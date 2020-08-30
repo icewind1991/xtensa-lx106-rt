@@ -7,7 +7,7 @@ keywords = ["esp8266", "xtensa-lx106-rt", "runtime", "startup"]
 license = "MIT OR Apache-2.0"
 name = "xtensa-lx106-rt-proc-macros"
 repository = "https://github.com/icewind1991/xtensa-lx106-rt"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2018"
 
 [lib]
