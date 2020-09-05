@@ -7,10 +7,9 @@ MEMORY
       /* All .data/.bss/heap are in this segment. Reserve 1KB for old boot or ROM boot */
       dram_seg :     org = 0x3FFE8000, len = 0x14000
 
-      /* Functions which are critical should be put in this segment. */
-      vectors_seg :  org = 0x40100000, len = 0x400
-      iram_seg :     org = 0x40100400, len = 0x8000 - 0x0400
-      irom_seg :     org = 0x40201010, len = 0xfeff0
+      vectors_seg :  org = 0x40100000, len = 0x100
+      iram_seg :     org = 0x40100100, len = 0x8000 - 0x0100
+      irom_seg :     org = 0x40220000, len = 0x3DA000
 }
 
 PROVIDE(__pre_init = DefaultPreInit);
@@ -73,15 +72,20 @@ SECTIONS {
 
   .rwtext :
   {
-    _text_start = ABSOLUTE(.);
     *(.rwtext.literal .rwtext .rwtext.literal.* .rwtext.text.*)
-    _text_end = ABSOLUTE(.);
   } > iram_seg
 
   .text :
     {
+      _text_start = ABSOLUTE(.);
       *(.literal .text .literal.* .text.*)
+      _text_end = ABSOLUTE(.);
     } > iram_seg
+
+    .rotext :
+    {
+      *(.rotext.literal .rotext.text .rotext.literal.* .rotext.text.*)
+    } > irom_seg
 
   /* Shared RAM */
   .dram0.bss (NOLOAD) :
@@ -92,7 +96,7 @@ SECTIONS {
     *(.bss.*)
     . = ALIGN (8);
     _bss_end = ABSOLUTE(.);
-  } >dram_seg
+  } > dram_seg
 
   .dram0.data :
   {
