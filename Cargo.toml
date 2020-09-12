@@ -1,6 +1,6 @@
 [package]
 name = "xtensa-lx106-rt"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Robin appelman <robin@icewind.nl>"]
 edition = "2018"
 description = "Low level access for xtensa lx6 processors and peripherals"
@@ -12,7 +12,7 @@ links = "xtensa-lx106" # prevent multiple versions of this crate to be linked to
 
 [dependencies]
 r0 = "1.0"
-xtensa-lx106-rt-proc-macros = { path = "procmacros", version = "=0.1.1" }
+xtensa-lx106-rt-proc-macros = { path = "procmacros", version = "=0.1.2" }
 
 [profile.dev]
 lto = true 
