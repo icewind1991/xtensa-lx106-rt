@@ -363,5 +363,5 @@ extern "C" fn __default_double_exception(cause: ExceptionCause, save_frame: &Exc
 }
 #[no_mangle]
 #[link_section = ".rwtext"]
-extern "C" fn __default_interrupt(save_frame: &ExceptionContext) {
+extern "C" fn __default_interrupt(_save_frame: &ExceptionContext) {
 }

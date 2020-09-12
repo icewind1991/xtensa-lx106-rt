@@ -306,7 +306,7 @@ pub fn interrupt(args: TokenStream, input: TokenStream) -> TokenStream {
                 .to_compile_error()
                 .into();
         }
-    };
+    }.to_ascii_lowercase();
 
     match ty.as_str() {
         "slc" | "spi" | "gpio" | "uart" | "ccompare" | "soft" | "timer1" => (),
