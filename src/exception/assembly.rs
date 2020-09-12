@@ -23,6 +23,12 @@ global_asm!(
     .set XT_STK_SAR,            72
     .set XT_STK_EXCCAUSE,       76
     .set XT_STK_EXCVADDR,       80
+    .set XT_INT_ENABLE,    84
+
+    .set XT_STK_BASESAVE,      240
+    .set XT_STK_FRMSZ,         256  // needs to be multiple of 16 and at least 16 free
+                                    // (for base save region)
+                                    // multiple of 256 allows use of addmi instruction
 
     .set PS_INTLEVEL_EXCM, 3
     .set PS_INTLEVEL_MASK, 0x0000000f
@@ -81,7 +87,9 @@ global_asm!(
     r#"
     .macro SAVE_CONTEXT level:req
 
-    s32i    a1, sp, +XT_STK_A1         // save interruptee's A1/SP
+    mov     a0, a1                     // save a1/sp
+    addmi   sp, sp, -XT_STK_FRMSZ      // bumb stack pointer
+    s32i    a0, sp, +XT_STK_A1         // save interruptee's A1/SP
 
     .ifc \level,double
     rsr     a0, DEPC
@@ -115,23 +123,6 @@ global_asm!(
     rsr     a0, EXCVADDR
     s32i    a0, sp, +XT_STK_EXCVADDR
     .endif
-
-    // clear EXCM so other exceptions like window overflow can be handled normally again.
-    // If level 1 interrupt or exception then block level 1 interrupts (for higher level
-    // interrupts, this is done automatically).
-    rsr     a0, PS
-    .ifc \level,1
-    movi    a2, ~(PS_EXCM|PS_INTLEVEL_MASK)
-    and     a0, a0, a2
-    movi    a2, 1
-    or      a0, a0, a2
-    .else
-    movi    a2, ~PS_EXCM
-    and     a0, a0, a2
-    .endif
-
-    wsr     a0, PS
-    rsync                              // wait for WSR.PS to complete
 
     call0   save_context
 
@@ -205,7 +196,7 @@ unsafe extern "C" fn __default_naked_user_exception() {
         SAVE_CONTEXT 1
 
         rsr.EXCCAUSE a2                   // put cause in a2
-        beqi    a2, 4, .Level1Interrupt
+        beqi    a2, 4, .Level1Interrupt   // cause 4 is interrupt
 
         mov     a3, sp                    // put address of save frame in a3
         call0   __user_exception          // call handler <= actual call!
@@ -215,12 +206,20 @@ unsafe extern "C" fn __default_naked_user_exception() {
         .Level1Interrupt:
         rsr.INTERRUPT a2                  // out interrupt type in a2
         rsr.INTENABLE a3
+        s32i a3, sp, +XT_INT_ENABLE       // save enabled interrupts
         and a2, a2, a3
 
-        wsr.INTCLEAR a3
+        wsr.INTCLEAR a2
+
+        movi a4, 0
+        wsr.INTENABLE a4                  // disable interrupts
+        rsil a4, 0
 
         mov     a3, sp                    // put address of save frame in a3
         call0   __interrupt_trampoline    // call handler <= actual call!
+
+        l32i a3, sp, +XT_INT_ENABLE
+        wsr.INTENABLE a3                  // re enable interrupts
 
         .RestoreContext:
         RESTORE_CONTEXT 1
@@ -365,5 +364,4 @@ extern "C" fn __default_double_exception(cause: ExceptionCause, save_frame: &Exc
 #[no_mangle]
 #[link_section = ".rwtext"]
 extern "C" fn __default_interrupt(save_frame: &ExceptionContext) {
-    panic!("Interrupt: {:08x?}", save_frame)
 }
