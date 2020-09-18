@@ -7,6 +7,7 @@ use r0;
 
 pub use xtensa_lx106_rt_proc_macros::{entry, pre_init, exception, interrupt};
 pub use crate::exception::{ExceptionCause, ExceptionContext};
+use core::ptr::{write_volatile, read_volatile};
 
 pub mod exception;
 pub mod interrupt;
@@ -35,13 +36,21 @@ pub fn set_crystal_frequency(crystal: CrystalFrequency) {
     }
 }
 
-extern "C" {
-    fn rom_i2c_writeReg(block: u8, host_id: u8, reg_add: u8, data: u8);
+unsafe fn rom_i2c_write_reg(block: u8, host_id: u8, reg_add: u8, data: u8) {
+    let ctrl = (1 << 24) | ((data as u32) << 16) | ((reg_add as u32) << 8) | (block as u32);
+    let addr = ((host_id as u32 * 4) + 0x60000d00) as *mut u32;
+    write_volatile(addr, ctrl);
+    loop {
+        let a9 = read_volatile(addr);
+        if (a9 >> 25) & 1 == 0 {
+            return;
+        }
+    }
 }
 
 unsafe fn configure_pll((reg1, reg2): (u8, u8)) {
-    rom_i2c_writeReg(103, 4, 1, reg1);
-    rom_i2c_writeReg(103, 4, 2, reg2);
+    rom_i2c_write_reg(103, 4, 1, reg1);
+    rom_i2c_write_reg(103, 4, 2, reg2);
 }
 
 #[doc(hidden)]

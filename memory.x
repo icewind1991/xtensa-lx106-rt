@@ -119,7 +119,3 @@ SECTIONS {
   } >dram_seg
 
 }
-
-/* Proprietary ROM functions */
-
-PROVIDE ( rom_i2c_writeReg = 0x400072d8 );
